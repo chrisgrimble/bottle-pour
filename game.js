@@ -201,6 +201,7 @@ function shake(index) {
 }
 
 function onBottleClick(i) {
+  if (animating) return;
   if (selected === null) {
     if (bottles[i].length === 0) {
       shake(i);
@@ -225,27 +226,121 @@ function onBottleClick(i) {
     return;
   }
 
-  history.push(cloneState(bottles));
-  pour(bottles, from, i, capacity);
-  moves++;
-  render();
+  animating = true;
+  animatePour(from, i).then(() => {
+    animating = false;
+    history.push(cloneState(bottles));
+    pour(bottles, from, i, capacity);
+    moves++;
+    render();
 
-  if (isWon(bottles, capacity)) {
-    winText.textContent = `Solved in ${moves} move${moves === 1 ? "" : "s"}.`;
-    winEl.hidden = false;
+    if (isWon(bottles, capacity)) {
+      winText.textContent = `Solved in ${moves} move${moves === 1 ? "" : "s"}.`;
+      winEl.hidden = false;
+    }
+  });
+}
+
+// ---------- pour animation ----------
+
+const MOVE_MS = 350;        // bottle travelling to / from the target
+const STREAM_MS = 120;      // stream reaching down / pulling away
+const LAYER_MS = 220;       // time to pour each layer
+const TILT_DEG = 100;
+const POUR_GAP = 40;        // how far above the target's mouth the source pours from
+
+let animating = false;
+
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// Plays the pour on the current DOM only; the caller updates the state afterwards.
+async function animatePour(from, to) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+  const srcEl = boardEl.children[from];
+  const dstEl = boardEl.children[to];
+  const layerH = parseFloat(getComputedStyle(srcEl).getPropertyValue("--layer-h"));
+  const amount = Math.min(topRun(bottles[from]), capacity - bottles[to].length);
+  const colour = PALETTE[topColour(bottles[from]) % PALETTE.length];
+
+  // Tilt around the mouth and park it just above the target's mouth.
+  const half = srcEl.offsetWidth / 2;
+  const pourX = dstEl.offsetLeft + half;
+  const pourY = dstEl.offsetTop - POUR_GAP;
+  const dx = pourX - (srcEl.offsetLeft + half);
+  const dy = pourY - srcEl.offsetTop;
+  const tilt = dstEl.offsetLeft < srcEl.offsetLeft ? -TILT_DEG : TILT_DEG;
+
+  srcEl.classList.remove("selected");
+  srcEl.classList.add("pouring");
+  srcEl.style.transition = `transform ${MOVE_MS}ms ease-in-out`;
+  srcEl.style.transform = `translate(${dx}px, ${dy}px) rotate(${tilt}deg)`;
+  await wait(MOVE_MS);
+
+  // Stream falls from the mouth to the target's liquid surface.
+  const surfaceY = dstEl.offsetTop + dstEl.clientHeight - bottles[to].length * layerH;
+  const stream = document.createElement("div");
+  stream.className = "stream";
+  stream.style.background = colour;
+  stream.style.left = `${pourX - 5}px`;
+  stream.style.top = `${pourY}px`;
+  stream.style.height = "0px";
+  stream.style.transition = `top ${STREAM_MS}ms linear, height ${STREAM_MS}ms linear`;
+  boardEl.appendChild(stream);
+  void stream.offsetHeight;
+  stream.style.height = `${surfaceY - pourY}px`;
+  await wait(STREAM_MS);
+
+  // Drain the source's top layers while new layers rise in the target.
+  const fillMs = amount * LAYER_MS;
+  const srcLayers = Array.from(srcEl.children).slice(-amount);
+  const newLayers = [];
+  for (let n = 0; n < amount; n++) {
+    const layer = document.createElement("div");
+    layer.className = "layer";
+    layer.style.background = colour;
+    layer.style.height = "0px";
+    dstEl.appendChild(layer);
+    newLayers.push(layer);
   }
+  void dstEl.offsetHeight;
+  for (const layer of [...srcLayers, ...newLayers]) {
+    layer.style.transition = `height ${fillMs}ms linear`;
+  }
+  srcLayers.forEach(layer => {
+    layer.style.height = "0px";
+    layer.style.borderTopWidth = "0px";
+  });
+  newLayers.forEach(layer => { layer.style.height = `${layerH}px`; });
+  stream.style.transition = `height ${fillMs}ms linear`;
+  stream.style.height = `${surfaceY - amount * layerH - pourY}px`;
+  await wait(fillMs);
+
+  // Stream pulls away from the mouth, then the bottle goes home.
+  stream.style.transition = `top ${STREAM_MS}ms linear, height ${STREAM_MS}ms linear`;
+  stream.style.top = `${surfaceY - amount * layerH}px`;
+  stream.style.height = "0px";
+  await wait(STREAM_MS);
+  stream.remove();
+
+  srcEl.style.transform = "";
+  await wait(MOVE_MS);
 }
 
 undoBtn.addEventListener("click", () => {
-  if (history.length === 0) return;
+  if (animating || history.length === 0) return;
   bottles = history.pop();
   moves--;
   selected = null;
   render();
 });
 
-document.getElementById("restart").addEventListener("click", resetToStart);
-document.getElementById("new").addEventListener("click", startLevel);
+document.getElementById("restart").addEventListener("click", () => {
+  if (!animating) resetToStart();
+});
+document.getElementById("new").addEventListener("click", () => {
+  if (!animating) startLevel();
+});
 document.getElementById("next").addEventListener("click", () => {
   levelIndex++;
   startLevel();
