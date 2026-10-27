@@ -69,7 +69,8 @@ function render() {
   boardEl.innerHTML = "";
   bottles.forEach((bottle, i) => {
     const el = document.createElement("div");
-    el.className = "bottle" + (selected === i ? " selected" : "");
+    el.className = "bottle" + (selected === i ? " selected" : "") +
+      (isComplete(bottle) ? " complete" : "");
     // Height scales with capacity, plus a little headroom for the neck.
     el.style.height = `calc(var(--layer-h) * ${capacity} + 16px)`;
     bottle.forEach(colour => {
@@ -128,13 +129,22 @@ function onBottleClick(i) {
     moves++;
     render();
 
+    if (isComplete(bottles[i])) {
+      celebrateBottle(boardEl.children[i], PALETTE[bottles[i][0] % PALETTE.length]);
+    }
     if (isWon(bottles, capacity)) {
       sounds.win();
+      celebrateWin(PALETTE);
       showWin();
-    } else if (bottles[i].length === capacity && isWon([bottles[i]], capacity)) {
+    } else if (isComplete(bottles[i])) {
       sounds.bottleDone();
     }
   });
+}
+
+// Full of a single colour.
+function isComplete(bottle) {
+  return bottle.length === capacity && isWon([bottle], capacity);
 }
 
 // ---------- stars ----------
