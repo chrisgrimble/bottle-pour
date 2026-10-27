@@ -91,38 +91,54 @@
       border-top: 1px solid rgba(0, 0, 0, 0.15);
     }
 
-    #win {
+    .overlay {
       position: fixed;
       inset: 0;
+      z-index: 100;
       background: rgba(0, 0, 0, 0.6);
       display: flex;
       align-items: center;
       justify-content: center;
+      padding: 16px;
     }
-    #win[hidden] { display: none; }
-    #win .panel {
+    .overlay[hidden] { display: none; }
+    .overlay .panel {
       background: #2b3550;
       padding: 32px 40px;
       border-radius: 16px;
       text-align: center;
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
     }
-    #win h2 { margin-top: 0; font-size: 2em; }
+    .overlay h2 { margin-top: 0; font-size: 2em; }
+    #name-form { display: flex; flex-direction: column; gap: 12px; align-items: center; }
+    #name-input {
+      font: inherit;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 2px solid #4a5a85;
+      background: #141826;
+      color: #fff;
+      width: 220px;
+      text-align: center;
+    }
+    #name-input:focus { outline: none; border-color: #8fa3e0; }
   </style>
 </head>
 <body>
   <h1>Bottle Pour</h1>
   <div id="status">
+    <span>Player: <strong id="player"></strong></span>
     <span>Level: <strong id="level"></strong></span>
     <span>Moves: <strong id="moves"></strong></span>
   </div>
   <div id="controls">
     <button id="undo">Undo</button>
     <button id="restart">Restart</button>
+    <button id="change-player">Change player</button>
   </div>
   <div id="board"></div>
 
-  <div id="win" hidden>
+  <div id="win" class="overlay" hidden>
     <div class="panel">
       <h2>You win!</h2>
       <p id="win-text"></p>
@@ -130,7 +146,19 @@
     </div>
   </div>
 
+  <div id="name-dialog" class="overlay" hidden>
+    <div class="panel">
+      <h2>Who's playing?</h2>
+      <form id="name-form">
+        <input id="name-input" type="text" maxlength="30" placeholder="Your name"
+               autocomplete="off" required>
+        <button type="submit">Play</button>
+      </form>
+    </div>
+  </div>
+
   <script src="rules.js"></script>
+  <script src="progress.js"></script>
   <script src="levels.js"></script>
   <script src="game.js"></script>
 </body>

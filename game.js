@@ -16,6 +16,7 @@ const PALETTE = [
 
 // ---------- game state ----------
 
+let playerName = "";
 let levelIndex = 0;
 let capacity = 4;
 let bottles = [];        // current state: array of arrays, bottom -> top
@@ -33,6 +34,10 @@ const winEl = document.getElementById("win");
 const winText = document.getElementById("win-text");
 
 const nextBtn = document.getElementById("next");
+const playerEl = document.getElementById("player");
+const nameDialog = document.getElementById("name-dialog");
+const nameForm = document.getElementById("name-form");
+const nameInput = document.getElementById("name-input");
 
 function currentLevel() {
   return LEVELS[levelIndex];
@@ -118,6 +123,7 @@ function onBottleClick(i) {
     if (isWon(bottles, capacity)) {
       const par = currentLevel().par;
       const lastLevel = levelIndex === LEVELS.length - 1;
+      saveProgress(playerName, (levelIndex + 1) % LEVELS.length);
       winText.textContent =
         `Solved in ${moves} move${moves === 1 ? "" : "s"} (best possible: ${par}).` +
         (lastLevel ? " You've completed every level!" : "");
@@ -229,4 +235,29 @@ nextBtn.addEventListener("click", () => {
   startLevel();
 });
 
-startLevel();
+// ---------- players ----------
+
+function askForName() {
+  nameInput.value = loadLastPlayer();
+  nameDialog.hidden = false;
+  nameInput.focus();
+  nameInput.select();
+}
+
+nameForm.addEventListener("submit", event => {
+  event.preventDefault();
+  const name = nameInput.value.trim();
+  if (!name) return;
+  playerName = name;
+  saveLastPlayer(name);
+  levelIndex = Math.min(loadProgress(name), LEVELS.length - 1);
+  playerEl.textContent = name;
+  nameDialog.hidden = true;
+  startLevel();
+});
+
+document.getElementById("change-player").addEventListener("click", () => {
+  if (!animating) askForName();
+});
+
+askForName();
