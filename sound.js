@@ -56,6 +56,11 @@ const sounds = {
     }
   }),
 
+  hint: () => play(t => {
+    tone(880, t, 0.25, { volume: 0.07 });
+    tone(1175, t + 0.1, 0.35, { volume: 0.06 });
+  }),
+
   bottleDone: () => play(t => {
     tone(1047, t, 0.5, { volume: 0.1 });
     tone(1319, t + 0.08, 0.6, { volume: 0.08 });

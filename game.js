@@ -24,6 +24,8 @@ let bottles = [];        // current state: array of arrays, bottom -> top
 let history = [];        // previous states, for Undo
 let moves = 0;
 let selected = null;
+let hintsUsed = 0;       // on this attempt; any hint caps the stars at 2
+let hint = null;         // [from, to] being suggested, until the next pour
 
 // ---------- UI ----------
 
@@ -56,6 +58,10 @@ function resetToStart() {
   bottles = cloneState(currentLevel().bottles);
   history = [];
   moves = 0;
+  hintsUsed = 0;
+  hint = null;
+  showMessage("");
+  document.querySelectorAll(".confetti").forEach(c => c.remove());
   selected = null;
   winEl.hidden = true;
   render();
@@ -70,7 +76,9 @@ function render() {
   bottles.forEach((bottle, i) => {
     const el = document.createElement("div");
     el.className = "bottle" + (selected === i ? " selected" : "") +
-      (isComplete(bottle) ? " complete" : "");
+      (isComplete(bottle) ? " complete" : "") +
+      (hint && hint[0] === i ? " hint-from" : "") +
+      (hint && hint[1] === i ? " hint-to" : "");
     // Height scales with capacity, plus a little headroom for the neck.
     el.style.height = `calc(var(--layer-h) * ${capacity} + 16px)`;
     bottle.forEach(colour => {
@@ -127,6 +135,8 @@ function onBottleClick(i) {
     history.push(cloneState(bottles));
     pour(bottles, from, i, capacity);
     moves++;
+    hint = null;
+    showMessage("");
     render();
 
     if (isComplete(bottles[i])) {
@@ -164,7 +174,7 @@ function starText(count) {
 
 function showWin() {
   const par = currentLevel().par;
-  const earned = starsFor(moves, par);
+  const earned = Math.min(starsFor(moves, par), hintsUsed ? HINT_STAR_CAP : MAX_STARS);
   const lastLevel = levelIndex === LEVELS.length - 1;
   const best = progress.stars[levelIndex] || 0;
 
@@ -183,7 +193,11 @@ function showWin() {
   winStarsEl.setAttribute("aria-label", `${earned} of ${MAX_STARS} stars`);
 
   let text = `Solved in ${moves} move${moves === 1 ? "" : "s"}. Best possible: ${par}.`;
-  if (earned < MAX_STARS) text += ` Get it in ${earned === 1 ? Math.ceil(par * 1.5) : par} for ${earned + 1} stars.`;
+  if (hintsUsed && earned === HINT_STAR_CAP) {
+    text += ` Solve it without a hint in ${par} moves for 3 stars.`;
+  } else if (earned < MAX_STARS) {
+    text += ` Get it in ${earned === 1 ? Math.ceil(par * 1.5) : par} for ${earned + 1} stars.`;
+  }
   if (best > earned) text += ` Your best here is ${best} stars.`;
   if (lastLevel) text += " You've completed every level!";
   winText.textContent = text;
@@ -333,6 +347,8 @@ undoBtn.addEventListener("click", () => {
   bottles = history.pop();
   moves--;
   selected = null;
+  hint = null;
+  showMessage("");
   render();
 });
 
@@ -371,6 +387,47 @@ document.getElementById("change-player").addEventListener("click", () => {
   if (!animating) askForName();
 });
 
+// ---------- hints ----------
+
+const HINT_STAR_CAP = 2;
+const HINT_SEARCH_LIMIT = 200000;  // states; keeps the page responsive
+const messageEl = document.getElementById("message");
+let messageTimer = null;
+
+function showMessage(text) {
+  clearTimeout(messageTimer);
+  messageEl.textContent = text;
+  if (text) messageTimer = setTimeout(() => { messageEl.textContent = ""; }, 6000);
+}
+
+function showHint() {
+  if (animating || !winEl.hidden) return;
+  selected = null;
+  render();
+
+  const path = solve(bottles, capacity, HINT_SEARCH_LIMIT);
+  if (path === null) {
+    sounds.invalid();
+    showMessage("There's no way to win from here. Undo a few moves or restart.");
+    return;
+  }
+  if (path === undefined) {
+    showMessage("Too many possibilities to work out a hint here. Try undoing a few moves.");
+    return;
+  }
+  if (path.length === 0) return;
+
+  hint = path[0];
+  hintsUsed++;
+  render();
+  sounds.hint();
+  showMessage(`Pour the gold bottle into the white one. ` +
+    `${path.length} move${path.length === 1 ? "" : "s"} to go at best.` +
+    (hintsUsed === 1 ? " Hints limit this level to 2 stars." : ""));
+}
+
+document.getElementById("hint").addEventListener("click", showHint);
+
 const soundBtn = document.getElementById("sound");
 
 function showSoundSetting() {
@@ -389,11 +446,12 @@ showSoundSetting();
 // When hosted as a Claude page, an update to the page keeps the game in progress.
 // Elsewhere window.claude doesn't exist and this just asks for a name.
 
-window.claude?.hot?.snapshot?.(() => ({ playerName, levelIndex, bottles, history, moves }));
+window.claude?.hot?.snapshot?.(() => ({ playerName, levelIndex, bottles, history, moves, hintsUsed }));
 
 function boot(saved = {}) {
   if (!saved.playerName || !(saved.levelIndex < LEVELS.length)) return askForName();
   ({ playerName, levelIndex, bottles, history, moves } = saved);
+  hintsUsed = saved.hintsUsed || 0;
   progress = loadProgress(playerName);
   capacity = currentLevel().capacity;
   playerEl.textContent = playerName;

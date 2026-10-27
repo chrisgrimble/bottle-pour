@@ -30,7 +30,26 @@
       margin-bottom: 16px;
       opacity: 0.85;
     }
-    #controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 40px; }
+    #controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 10px; }
+    #message {
+      min-height: 1.4em;  /* reserve the line so the board doesn't jump */
+      margin: 0 0 30px;
+      max-width: 34em;
+      text-align: center;
+      color: #f1d77a;
+    }
+    #hint { background: #6b5a2e; }
+    #hint:hover { background: #82703a; }
+    .bottle.hint-from { animation: hint-glow 1s ease-in-out infinite; --glow: #f1c40f; }
+    .bottle.hint-to { animation: hint-glow 1s ease-in-out infinite; --glow: #ffffff; }
+    @keyframes hint-glow {
+      0%, 100% { box-shadow: 0 0 4px var(--glow); }
+      50% { box-shadow: 0 0 20px 4px var(--glow); }
+    }
+    .bottle.hint-from.selected { box-shadow: 0 0 18px var(--glow); animation: none; }
+    @media (prefers-reduced-motion: reduce) {
+      .bottle.hint-from, .bottle.hint-to { animation: none; box-shadow: 0 0 14px 3px var(--glow); }
+    }
     button {
       font: inherit;
       padding: 8px 16px;
@@ -54,7 +73,7 @@
     /* Phones: smaller bottles so the bigger levels fit in a couple of rows. */
     @media (max-width: 520px) {
       h1 { font-size: 1.6em; }
-      #controls { margin-bottom: 28px; }
+      #message { margin-bottom: 20px; font-size: 0.92em; }
       #board { gap: 18px 12px; }
       .bottle { --layer-h: 28px; width: 42px; border-radius: 0 0 18px 18px; }
     }
@@ -233,12 +252,14 @@
     <span>Moves: <strong id="moves"></strong></span>
   </div>
   <div id="controls">
+    <button id="hint">Hint</button>
     <button id="undo">Undo</button>
     <button id="restart">Restart</button>
     <button id="levels">Levels</button>
     <button id="change-player">Change player</button>
     <button id="sound" aria-pressed="true">Sound on</button>
   </div>
+  <p id="message" role="status" aria-live="polite"></p>
   <div id="board"></div>
 
   <div id="win" class="overlay" hidden>

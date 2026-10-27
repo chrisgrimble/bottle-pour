@@ -2,7 +2,7 @@
 //
 // Usage: node tools/generate-levels.mjs
 //
-// Each candidate puzzle is solved with a breadth-first search, so every level
+// Each candidate puzzle is solved with solve() from rules.js, so every level
 // written out is proven solvable, and its "par" is the fewest moves needed.
 // Difficulty grows with the number of colours, and within a band of levels
 // that share a size, with par.
@@ -28,38 +28,6 @@ const BANDS = [
 const CANDIDATES_PER_BAND = 40;
 const STATE_LIMIT = 3_000_000;
 const SEED = 20261027;
-
-// ---------- solver ----------
-
-// Bottle order doesn't matter for solving, so sort to merge equivalent states.
-const key = s => s.map(b => b.join("")).sort().join("|");
-
-// Returns the fewest moves to win, -1 if unsolvable, or null if too big to search.
-function par(start, cap) {
-  if (isWon(start, cap)) return 0;
-  const seen = new Set([key(start)]);
-  let frontier = [start];
-  for (let depth = 1; frontier.length > 0; depth++) {
-    const next = [];
-    for (const s of frontier) {
-      for (let f = 0; f < s.length; f++) {
-        for (let t = 0; t < s.length; t++) {
-          if (!canPour(s, f, t, cap)) continue;
-          const n = cloneState(s);
-          pour(n, f, t, cap);
-          const k = key(n);
-          if (seen.has(k)) continue;
-          if (isWon(n, cap)) return depth;
-          seen.add(k);
-          if (seen.size > STATE_LIMIT) return null;
-          next.push(n);
-        }
-      }
-    }
-    frontier = next;
-  }
-  return -1;
-}
 
 // ---------- generation ----------
 
@@ -96,9 +64,10 @@ for (const [colours, empty, cap, count] of BANDS) {
     tries++;
     const bottles = deal(colours, empty, cap);
     if (hasSortedBottle(bottles)) continue;
-    const p = par(bottles, cap);
-    if (p === null || p <= 0) continue;
-    found.push({ bottles, par: p });
+    // solve() comes from rules.js; skip puzzles too big to check or unwinnable.
+    const path = solve(bottles, cap, STATE_LIMIT);
+    if (!path || path.length === 0) continue;
+    found.push({ bottles, par: path.length });
   }
   if (found.length < count) throw new Error(`Only found ${found.length} puzzles for ${colours} colours`);
 

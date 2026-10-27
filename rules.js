@@ -37,3 +37,42 @@ function isWon(state, cap) {
 function cloneState(state) {
   return state.map(b => b.slice());
 }
+
+// Shortest list of pours that wins from this state, as [from, to] pairs.
+// Returns [] if already won, null if it can't be won, or undefined if it gave
+// up after looking at `limit` states.
+function solve(start, cap, limit = 3000000) {
+  if (isWon(start, cap)) return [];
+  // Bottle order doesn't matter for solving, so sort to merge equivalent states.
+  const key = s => s.map(b => b.join(",")).sort().join("|");
+  // Each state remembers the state it came from and the pour that got there.
+  const cameFrom = new Map([[key(start), null]]);
+  let frontier = [start];
+  while (frontier.length > 0) {
+    const next = [];
+    for (const s of frontier) {
+      const sKey = key(s);
+      for (let from = 0; from < s.length; from++) {
+        for (let to = 0; to < s.length; to++) {
+          if (!canPour(s, from, to, cap)) continue;
+          const n = cloneState(s);
+          pour(n, from, to, cap);
+          const nKey = key(n);
+          if (cameFrom.has(nKey)) continue;
+          cameFrom.set(nKey, [sKey, from, to]);
+          if (isWon(n, cap)) {
+            const path = [];
+            for (let step = cameFrom.get(nKey); step; step = cameFrom.get(step[0])) {
+              path.unshift([step[1], step[2]]);
+            }
+            return path;
+          }
+          if (cameFrom.size > limit) return undefined;
+          next.push(n);
+        }
+      }
+    }
+    frontier = next;
+  }
+  return null;
+}
