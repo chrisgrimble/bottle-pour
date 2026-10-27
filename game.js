@@ -94,15 +94,18 @@ function onBottleClick(i) {
   if (animating) return;
   if (selected === null) {
     if (bottles[i].length === 0) {
+      sounds.invalid();
       shake(i);
       return;
     }
+    sounds.pickUp();
     selected = i;
     render();
     return;
   }
 
   if (selected === i) {
+    sounds.putDown();
     selected = null;
     render();
     return;
@@ -111,6 +114,7 @@ function onBottleClick(i) {
   const from = selected;
   selected = null;
   if (!canPour(bottles, from, i, capacity)) {
+    sounds.invalid();
     render();
     shake(i);
     return;
@@ -124,7 +128,12 @@ function onBottleClick(i) {
     moves++;
     render();
 
-    if (isWon(bottles, capacity)) showWin();
+    if (isWon(bottles, capacity)) {
+      sounds.win();
+      showWin();
+    } else if (bottles[i].length === capacity && isWon([bottles[i]], capacity)) {
+      sounds.bottleDone();
+    }
   });
 }
 
@@ -223,12 +232,18 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // Plays the pour on the current DOM only; the caller updates the state afterwards.
 async function animatePour(from, to) {
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const amount = Math.min(topRun(bottles[from]), capacity - bottles[to].length);
+  const fromFill = bottles[to].length / capacity;
+  const toFill = (bottles[to].length + amount) / capacity;
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    sounds.pour(300, fromFill, toFill);
+    return;
+  }
 
   const srcEl = boardEl.children[from];
   const dstEl = boardEl.children[to];
   const layerH = parseFloat(getComputedStyle(srcEl).getPropertyValue("--layer-h"));
-  const amount = Math.min(topRun(bottles[from]), capacity - bottles[to].length);
   const colour = PALETTE[topColour(bottles[from]) % PALETTE.length];
 
   // Tilt around the mouth and park it just above the target's mouth.
@@ -268,6 +283,7 @@ async function animatePour(from, to) {
 
   // Drain the source's top layers while new layers rise in the target.
   const fillMs = amount * LAYER_MS;
+  sounds.pour(fillMs, fromFill, toFill);
   const srcLayers = Array.from(srcEl.children).slice(-amount);
   const newLayers = [];
   for (let n = 0; n < amount; n++) {
@@ -344,6 +360,20 @@ nameForm.addEventListener("submit", event => {
 document.getElementById("change-player").addEventListener("click", () => {
   if (!animating) askForName();
 });
+
+const soundBtn = document.getElementById("sound");
+
+function showSoundSetting() {
+  soundBtn.textContent = isMuted() ? "Sound off" : "Sound on";
+  soundBtn.setAttribute("aria-pressed", String(!isMuted()));
+}
+
+soundBtn.addEventListener("click", () => {
+  setMuted(!isMuted());
+  showSoundSetting();
+  sounds.pickUp();  // a little confirmation when turning sound on
+});
+showSoundSetting();
 
 // ---------- boot ----------
 // When hosted as a Claude page, an update to the page keeps the game in progress.
