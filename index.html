@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bottle Pour</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at top, #2b3550, #141826);
+      color: #eef;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px;
+    }
+    h1 { margin: 0 0 8px; font-weight: 600; letter-spacing: 1px; }
+    #status { display: flex; gap: 24px; margin-bottom: 16px; opacity: 0.85; }
+    #controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 40px; }
+    button {
+      font: inherit;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      background: #4a5a85;
+      color: #fff;
+      cursor: pointer;
+    }
+    button:hover { background: #5b6da0; }
+    button:disabled { opacity: 0.4; cursor: default; }
+
+    #board {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 28px;
+      justify-content: center;
+      max-width: 900px;
+    }
+    .bottle {
+      --layer-h: 40px;
+      width: 60px;
+      /* height is set from capacity in game.js */
+      border: 3px solid rgba(255, 255, 255, 0.75);
+      border-top: none;
+      border-radius: 0 0 26px 26px;
+      background: rgba(255, 255, 255, 0.06);
+      display: flex;
+      flex-direction: column-reverse;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      position: relative;
+    }
+    .bottle::before {
+      /* bottle neck rim */
+      content: "";
+      position: absolute;
+      top: 0; left: -3px; right: -3px;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.75);
+    }
+    .bottle.selected {
+      transform: translateY(-20px);
+      box-shadow: 0 0 18px rgba(255, 255, 200, 0.7);
+    }
+    .bottle.shake { animation: shake 0.35s; }
+    @keyframes shake {
+      0%, 100% { translate: 0; }
+      20% { translate: -6px; }
+      40% { translate: 6px; }
+      60% { translate: -4px; }
+      80% { translate: 4px; }
+    }
+    .layer {
+      height: var(--layer-h);
+      flex-shrink: 0;
+      border-top: 1px solid rgba(0, 0, 0, 0.15);
+    }
+
+    #win {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #win[hidden] { display: none; }
+    #win .panel {
+      background: #2b3550;
+      padding: 32px 40px;
+      border-radius: 16px;
+      text-align: center;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    }
+    #win h2 { margin-top: 0; font-size: 2em; }
+  </style>
+</head>
+<body>
+  <h1>Bottle Pour</h1>
+  <div id="status">
+    <span>Level: <strong id="level"></strong></span>
+    <span>Moves: <strong id="moves"></strong></span>
+  </div>
+  <div id="controls">
+    <button id="undo">Undo</button>
+    <button id="restart">Restart</button>
+    <button id="new">New puzzle</button>
+  </div>
+  <div id="board"></div>
+
+  <div id="win" hidden>
+    <div class="panel">
+      <h2>You win!</h2>
+      <p id="win-text"></p>
+      <button id="next">Next level</button>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
