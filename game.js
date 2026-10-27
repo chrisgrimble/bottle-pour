@@ -17,6 +17,7 @@ const PALETTE = [
 // ---------- game state ----------
 
 let playerName = "";
+let progress = { unlocked: 0, stars: [] };   // see progress.js
 let levelIndex = 0;
 let capacity = 4;
 let bottles = [];        // current state: array of arrays, bottom -> top
@@ -34,6 +35,9 @@ const winEl = document.getElementById("win");
 const winText = document.getElementById("win-text");
 
 const nextBtn = document.getElementById("next");
+const winStarsEl = document.getElementById("win-stars");
+const levelsDialog = document.getElementById("levels-dialog");
+const levelGrid = document.getElementById("level-grid");
 const playerEl = document.getElementById("player");
 const nameDialog = document.getElementById("name-dialog");
 const nameForm = document.getElementById("name-form");
@@ -120,18 +124,90 @@ function onBottleClick(i) {
     moves++;
     render();
 
-    if (isWon(bottles, capacity)) {
-      const par = currentLevel().par;
-      const lastLevel = levelIndex === LEVELS.length - 1;
-      saveProgress(playerName, (levelIndex + 1) % LEVELS.length);
-      winText.textContent =
-        `Solved in ${moves} move${moves === 1 ? "" : "s"} (best possible: ${par}).` +
-        (lastLevel ? " You've completed every level!" : "");
-      nextBtn.textContent = lastLevel ? "Play again" : "Next level";
-      winEl.hidden = false;
-    }
+    if (isWon(bottles, capacity)) showWin();
   });
 }
+
+// ---------- stars ----------
+
+const MAX_STARS = 3;
+
+// 3 stars for the fewest possible moves, 2 for up to 50% more, otherwise 1.
+function starsFor(moves, par) {
+  if (moves <= par) return 3;
+  if (moves <= Math.ceil(par * 1.5)) return 2;
+  return 1;
+}
+
+function starText(count) {
+  return "★".repeat(count) + "☆".repeat(MAX_STARS - count);
+}
+
+function showWin() {
+  const par = currentLevel().par;
+  const earned = starsFor(moves, par);
+  const lastLevel = levelIndex === LEVELS.length - 1;
+  const best = progress.stars[levelIndex] || 0;
+
+  progress.stars[levelIndex] = Math.max(best, earned);
+  progress.unlocked = Math.max(progress.unlocked, Math.min(levelIndex + 1, LEVELS.length - 1));
+  saveProgress(playerName, progress);
+
+  winStarsEl.innerHTML = "";
+  for (let s = 0; s < MAX_STARS; s++) {
+    const star = document.createElement("span");
+    star.className = "star" + (s < earned ? " earned" : "");
+    star.textContent = s < earned ? "★" : "☆";
+    star.style.animationDelay = `${s * 0.15}s`;
+    winStarsEl.appendChild(star);
+  }
+  winStarsEl.setAttribute("aria-label", `${earned} of ${MAX_STARS} stars`);
+
+  let text = `Solved in ${moves} move${moves === 1 ? "" : "s"}. Best possible: ${par}.`;
+  if (earned < MAX_STARS) text += ` Get it in ${earned === 1 ? Math.ceil(par * 1.5) : par} for ${earned + 1} stars.`;
+  if (best > earned) text += ` Your best here is ${best} stars.`;
+  if (lastLevel) text += " You've completed every level!";
+  winText.textContent = text;
+  nextBtn.textContent = lastLevel ? "Play again" : "Next level";
+  winEl.hidden = false;
+}
+
+// ---------- level select ----------
+
+function openLevels() {
+  levelGrid.innerHTML = "";
+  LEVELS.forEach((level, i) => {
+    const locked = i > progress.unlocked;
+    const stars = progress.stars[i] || 0;
+    const tile = document.createElement("button");
+    tile.className = "level-tile" + (i === levelIndex ? " current" : "");
+    tile.disabled = locked;
+    tile.setAttribute("aria-label", locked
+      ? `Level ${i + 1}, locked`
+      : `Level ${i + 1}, ${stars ? `${stars} of ${MAX_STARS} stars` : "not solved yet"}`);
+    tile.innerHTML =
+      `<span class="tile-number">${i + 1}</span>` +
+      `<span class="tile-stars">${locked ? "🔒" : starText(stars)}</span>`;
+    tile.addEventListener("click", () => {
+      levelsDialog.hidden = true;
+      levelIndex = i;
+      startLevel();
+    });
+    levelGrid.appendChild(tile);
+  });
+  const total = progress.stars.reduce((sum, s) => sum + (s || 0), 0);
+  document.getElementById("star-total").textContent = `${total} / ${LEVELS.length * MAX_STARS} stars`;
+  winEl.hidden = true;
+  levelsDialog.hidden = false;
+}
+
+document.getElementById("levels").addEventListener("click", () => {
+  if (!animating) openLevels();
+});
+document.getElementById("win-levels").addEventListener("click", openLevels);
+document.getElementById("close-levels").addEventListener("click", () => {
+  levelsDialog.hidden = true;
+});
 
 // ---------- pour animation ----------
 
@@ -257,7 +333,9 @@ nameForm.addEventListener("submit", event => {
   if (!name) return;
   playerName = name;
   saveLastPlayer(name);
-  levelIndex = Math.min(loadProgress(name), LEVELS.length - 1);
+  progress = loadProgress(name);
+  progress.unlocked = Math.min(progress.unlocked, LEVELS.length - 1);
+  levelIndex = progress.unlocked;
   playerEl.textContent = name;
   nameDialog.hidden = true;
   startLevel();
@@ -276,6 +354,7 @@ window.claude?.hot?.snapshot?.(() => ({ playerName, levelIndex, bottles, history
 function boot(saved = {}) {
   if (!saved.playerName || !(saved.levelIndex < LEVELS.length)) return askForName();
   ({ playerName, levelIndex, bottles, history, moves } = saved);
+  progress = loadProgress(playerName);
   capacity = currentLevel().capacity;
   playerEl.textContent = playerName;
   render();

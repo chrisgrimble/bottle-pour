@@ -48,14 +48,27 @@ function writeValue(key, value) {
   }
 }
 
-// Returns the saved level index for this player, or 0 for a new player.
+// A player's progress: `unlocked` is the furthest level index they can play,
+// `stars` holds their best star rating per level index (0 = not solved yet).
 function loadProgress(name) {
-  const level = parseInt(readValue(playerKey(name)), 10);
-  return Number.isInteger(level) && level >= 0 ? level : 0;
+  const fresh = { unlocked: 0, stars: [] };
+  const raw = readValue(playerKey(name));
+  if (raw === null) return fresh;
+  // Older saves stored just the next level number.
+  if (/^\d+$/.test(raw)) return { unlocked: parseInt(raw, 10), stars: [] };
+  try {
+    const saved = JSON.parse(raw);
+    return {
+      unlocked: Number.isInteger(saved.unlocked) && saved.unlocked >= 0 ? saved.unlocked : 0,
+      stars: Array.isArray(saved.stars) ? saved.stars.map(s => Number(s) || 0) : [],
+    };
+  } catch {
+    return fresh;
+  }
 }
 
-function saveProgress(name, level) {
-  writeValue(playerKey(name), String(level));
+function saveProgress(name, progress) {
+  writeValue(playerKey(name), JSON.stringify(progress));
 }
 
 function loadLastPlayer() {
