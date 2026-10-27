@@ -6,6 +6,7 @@
   <title>Bottle Pour</title>
   <style>
     * { box-sizing: border-box; }
+    :root { color-scheme: dark; background: #141826; }
     body {
       margin: 0;
       min-height: 100vh;
@@ -15,10 +16,20 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 24px 16px;
+      padding-block: 24px;
+      padding-left: max(16px, env(safe-area-inset-left, 0px));
+      padding-right: max(16px, env(safe-area-inset-right, 0px));
+      overflow-x: hidden;  /* a tilted bottle may poke past the edge mid-pour */
     }
     h1 { margin: 0 0 8px; font-weight: 600; letter-spacing: 1px; }
-    #status { display: flex; gap: 24px; margin-bottom: 16px; opacity: 0.85; }
+    #status {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px 24px;
+      margin-bottom: 16px;
+      opacity: 0.85;
+    }
     #controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 40px; }
     button {
       font: inherit;
@@ -39,6 +50,13 @@
       justify-content: center;
       max-width: 1000px;
       position: relative;
+    }
+    /* Phones: smaller bottles so the bigger levels fit in a couple of rows. */
+    @media (max-width: 520px) {
+      h1 { font-size: 1.6em; }
+      #controls { margin-bottom: 28px; }
+      #board { gap: 18px 12px; }
+      .bottle { --layer-h: 28px; width: 42px; border-radius: 0 0 18px 18px; }
     }
     .bottle.pouring {
       z-index: 10;

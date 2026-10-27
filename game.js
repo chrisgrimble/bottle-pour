@@ -161,7 +161,14 @@ async function animatePour(from, to) {
   const pourY = dstEl.offsetTop - POUR_GAP;
   const dx = pourX - (srcEl.offsetLeft + half);
   const dy = pourY - srcEl.offsetTop;
-  const tilt = dstEl.offsetLeft < srcEl.offsetLeft ? -TILT_DEG : TILT_DEG;
+  // Lay the body back toward where the bottle came from, unless that side
+  // has no room on screen (e.g. a narrow phone), then use the other side.
+  const bodyLen = srcEl.offsetHeight;
+  const screenX = boardEl.getBoundingClientRect().left + pourX;
+  let bodyRight = dstEl.offsetLeft < srcEl.offsetLeft;
+  if (bodyRight && screenX + bodyLen > window.innerWidth) bodyRight = false;
+  else if (!bodyRight && screenX - bodyLen < 0) bodyRight = true;
+  const tilt = bodyRight ? -TILT_DEG : TILT_DEG;
 
   srcEl.classList.remove("selected");
   srcEl.classList.add("pouring");
@@ -260,4 +267,18 @@ document.getElementById("change-player").addEventListener("click", () => {
   if (!animating) askForName();
 });
 
-askForName();
+// ---------- boot ----------
+// When hosted as a Claude page, an update to the page keeps the game in progress.
+// Elsewhere window.claude doesn't exist and this just asks for a name.
+
+window.claude?.hot?.snapshot?.(() => ({ playerName, levelIndex, bottles, history, moves }));
+
+function boot(saved = {}) {
+  if (!saved.playerName || !(saved.levelIndex < LEVELS.length)) return askForName();
+  ({ playerName, levelIndex, bottles, history, moves } = saved);
+  capacity = currentLevel().capacity;
+  playerEl.textContent = playerName;
+  render();
+}
+
+window.claude?.hot?.ready ? window.claude.hot.ready(boot) : boot(window.claude?.hot?.data ?? {});
