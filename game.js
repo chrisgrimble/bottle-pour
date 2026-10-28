@@ -161,13 +161,6 @@ function isComplete(bottle) {
 
 const MAX_STARS = 3;
 
-// 3 stars for the fewest possible moves, 2 for up to 50% more, otherwise 1.
-function starsFor(moves, par) {
-  if (moves <= par) return 3;
-  if (moves <= Math.ceil(par * 1.5)) return 2;
-  return 1;
-}
-
 function starText(count) {
   return "★".repeat(count) + "☆".repeat(MAX_STARS - count);
 }

@@ -38,6 +38,13 @@ function cloneState(state) {
   return state.map(b => b.slice());
 }
 
+// 3 stars for the fewest possible moves, 2 for up to 50% more, otherwise 1.
+function starsFor(moves, par) {
+  if (moves <= par) return 3;
+  if (moves <= Math.ceil(par * 1.5)) return 2;
+  return 1;
+}
+
 // Shortest list of pours that wins from this state, as [from, to] pairs.
 // Returns [] if already won, null if it can't be won, or undefined if it gave
 // up after looking at `limit` states.
