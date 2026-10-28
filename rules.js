@@ -38,6 +38,24 @@ function cloneState(state) {
   return state.map(b => b.slice());
 }
 
+// ---------- hidden layers ----------
+// On a level with `hidden: true`, every layer below the top starts face down.
+// hidden[b] is how many layers at the bottom of bottle b are still face down;
+// they never move, because only the top run of a bottle can be poured.
+
+function startingHidden(level) {
+  return level.bottles.map(b => (level.hidden ? Math.max(0, b.length - 1) : 0));
+}
+
+// The top layer of every bottle is always face up, and a finished bottle shows
+// everything. Layers never turn face down again, even after an undo.
+function revealLayers(state, hidden, cap) {
+  return state.map((b, i) => {
+    if (b.length === cap && b.every(c => c === b[0])) return 0;
+    return Math.min(hidden[i] || 0, Math.max(0, b.length - 1));
+  });
+}
+
 // 3 stars for the fewest possible moves, 2 for up to 50% more, otherwise 1.
 function starsFor(moves, par) {
   if (moves <= par) return 3;

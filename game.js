@@ -26,6 +26,8 @@ let moves = 0;
 let selected = null;
 let hintsUsed = 0;       // on this attempt; any hint caps the stars at 2
 let hint = null;         // [from, to] being suggested, until the next pour
+let hidden = [];         // face-down layers at the bottom of each bottle (see rules.js)
+let hiddenBefore = null; // hidden counts before the last pour, to animate what it revealed
 
 // ---------- UI ----------
 
@@ -56,6 +58,8 @@ function startLevel() {
 
 function resetToStart() {
   bottles = cloneState(currentLevel().bottles);
+  hidden = startingHidden(currentLevel());
+  hiddenBefore = null;
   history = [];
   moves = 0;
   hintsUsed = 0;
@@ -81,12 +85,21 @@ function render() {
       (hint && hint[1] === i ? " hint-to" : "");
     // Height scales with capacity, plus a little headroom for the neck.
     el.style.height = `calc(var(--layer-h) * ${capacity} + 16px)`;
-    bottle.forEach(colour => {
+    bottle.forEach((colour, depth) => {
       const layer = document.createElement("div");
       layer.className = "layer";
-      layer.style.background = PALETTE[colour % PALETTE.length];
+      if (depth < (hidden[i] || 0)) {
+        layer.classList.add("face-down");
+        layer.textContent = "?";
+      } else {
+        layer.style.background = PALETTE[colour % PALETTE.length];
+        if (hiddenBefore && depth < (hiddenBefore[i] || 0)) layer.classList.add("revealed");
+      }
       el.appendChild(layer);
     });
+    if (hidden[i]) {
+      el.setAttribute("aria-label", `${hidden[i]} hidden layer${hidden[i] === 1 ? "" : "s"}`);
+    }
     el.addEventListener("click", () => onBottleClick(i));
     boardEl.appendChild(el);
   });
@@ -137,7 +150,11 @@ function onBottleClick(i) {
     moves++;
     hint = null;
     showMessage("");
+    hiddenBefore = hidden;
+    hidden = revealLayers(bottles, hidden, capacity);
+    if (hidden.some((h, b) => h < (hiddenBefore[b] || 0))) sounds.reveal();
     render();
+    hiddenBefore = null;
 
     if (isComplete(bottles[i])) {
       celebrateBottle(boardEl.children[i], PALETTE[bottles[i][0] % PALETTE.length]);
@@ -398,6 +415,12 @@ function showHint() {
   selected = null;
   render();
 
+  // The solver sees every colour, so a hint would give hidden layers away.
+  if (hidden.some(h => h > 0)) {
+    showMessage("Hints switch on once every hidden layer has been uncovered.");
+    return;
+  }
+
   const path = solve(bottles, capacity, HINT_SEARCH_LIMIT);
   if (path === null) {
     sounds.invalid();
@@ -439,12 +462,13 @@ showSoundSetting();
 // When hosted as a Claude page, an update to the page keeps the game in progress.
 // Elsewhere window.claude doesn't exist and this just asks for a name.
 
-window.claude?.hot?.snapshot?.(() => ({ playerName, levelIndex, bottles, history, moves, hintsUsed }));
+window.claude?.hot?.snapshot?.(() => ({ playerName, levelIndex, bottles, history, moves, hintsUsed, hidden }));
 
 function boot(saved = {}) {
   if (!saved.playerName || !(saved.levelIndex < LEVELS.length)) return askForName();
   ({ playerName, levelIndex, bottles, history, moves } = saved);
   hintsUsed = saved.hintsUsed || 0;
+  hidden = saved.hidden || startingHidden(currentLevel());
   progress = loadProgress(playerName);
   capacity = currentLevel().capacity;
   playerEl.textContent = playerName;

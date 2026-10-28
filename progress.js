@@ -4,7 +4,9 @@
 // from disk (file://), so when cookies don't stick we fall back to localStorage.
 
 const COOKIE_DAYS = 365;
-const KEY_PREFIX = "bottlePour_";
+// A page can set BOTTLE_POUR_STORAGE_PREFIX first to keep its saves separate
+// (see the --storage option of tools/bundle.mjs).
+const KEY_PREFIX = globalThis.BOTTLE_POUR_STORAGE_PREFIX ?? "bottlePour_";
 const LAST_PLAYER_KEY = KEY_PREFIX + "lastPlayer";
 
 // Names match regardless of case or surrounding spaces.

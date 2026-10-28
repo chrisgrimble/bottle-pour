@@ -56,6 +56,9 @@ const sounds = {
     }
   }),
 
+  // A quick upward flick as a hidden layer turns face up.
+  reveal: () => play(t => tone(520, t, 0.12, { type: "triangle", volume: 0.07, slideTo: 1040 })),
+
   hint: () => play(t => {
     tone(880, t, 0.25, { volume: 0.07 });
     tone(1175, t + 0.1, 0.35, { volume: 0.06 });

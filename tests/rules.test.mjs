@@ -78,6 +78,30 @@ test("solve returns undefined when it hits its search limit", () => {
   assert.equal(call("solve", start, 4, 5), undefined);
 });
 
+test("startingHidden hides everything below the top, only on hidden levels", () => {
+  const bottles = [[0, 1, 2, 3], [1, 2], [3], []];
+  assert.deepEqual(call("startingHidden", { hidden: true, bottles }), [3, 1, 0, 0]);
+  assert.deepEqual(call("startingHidden", { bottles }), [0, 0, 0, 0]);
+});
+
+test("revealLayers turns up a layer once it's on top", () => {
+  // Bottle 0 had 3 face down; pouring its top away leaves 3 layers, so one shows.
+  assert.deepEqual(call("revealLayers", [[0, 1, 2], [3, 3]], [3, 1], 4), [2, 1]);
+});
+
+test("revealLayers never hides a layer again, e.g. after an undo", () => {
+  // Undo put a layer back on top of bottle 0; the one revealed below stays up.
+  assert.deepEqual(call("revealLayers", [[0, 1, 2, 3], [3]], [2, 0], 4), [2, 0]);
+});
+
+test("revealLayers shows everything in a finished bottle", () => {
+  assert.deepEqual(call("revealLayers", [[1, 1, 1, 1], [0, 2]], [3, 1], 4), [0, 1]);
+});
+
+test("revealLayers leaves empty bottles with nothing hidden", () => {
+  assert.deepEqual(call("revealLayers", [[], [2]], [3, 0], 4), [0, 0]);
+});
+
 test("starsFor: 3 at par, 2 up to 50% over, 1 beyond", () => {
   assert.equal(call("starsFor", 10, 10), 3);
   assert.equal(call("starsFor", 9, 10), 3, "fewer than par still counts as 3");

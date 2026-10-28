@@ -88,6 +88,14 @@ test("a corrupted save starts fresh instead of crashing", () => {
   assert.deepEqual(progressOf(run, "Alice"), { unlocked: 0, stars: [] });
 });
 
+test("a page can keep its saves under a separate prefix", () => {
+  const document = fakeDocument();
+  const run = loadScripts(["progress.js"], { document, localStorage: fakeLocalStorage(), BOTTLE_POUR_STORAGE_PREFIX: "bottlePourTest_" });
+  run(`saveProgress("Alice", { unlocked: 1, stars: [3] })`);
+  assert.ok(document.jar.has("bottlePourTest_player_alice"));
+  assert.ok(!document.jar.has("bottlePour_player_alice"), "the real game's save is untouched");
+});
+
 test("the last player's name is remembered", () => {
   const { run } = loadProgress();
   assert.equal(run("loadLastPlayer()"), "");

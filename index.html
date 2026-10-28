@@ -167,6 +167,25 @@
       flex-shrink: 0;
       border-top: 1px solid rgba(0, 0, 0, 0.15);
     }
+    /* Hidden layers: a striped, face-down tile marked "?". */
+    .layer.face-down {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: repeating-linear-gradient(135deg, #3b4568 0 6px, #333c5d 6px 12px);
+      color: #9aa6cf;
+      font-weight: 700;
+      font-size: calc(var(--layer-h) * 0.45);
+      border-top-color: rgba(255, 255, 255, 0.08);
+    }
+    .layer.revealed { animation: reveal 0.4s ease-out; }
+    @keyframes reveal {
+      from { transform: scaleY(0); filter: brightness(1.8); }
+      to { transform: scaleY(1); filter: brightness(1); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .layer.revealed { animation: none; }
+    }
 
     .overlay {
       position: fixed;
