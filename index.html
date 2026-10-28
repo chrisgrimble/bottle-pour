@@ -261,6 +261,30 @@
       text-align: center;
     }
     #name-input:focus { outline: none; border-color: #8fa3e0; }
+
+    #player-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: min(280px, 100%);
+      margin: 0 auto;
+      max-height: 40vh;
+      overflow-y: auto;
+    }
+    .player-choice {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      text-align: left;
+      background: #3a4870;
+    }
+    .player-choice.current { box-shadow: inset 0 0 0 2px #f1c40f; }
+    .player-name { font-weight: 600; overflow-wrap: anywhere; }
+    .player-detail { font-size: 0.85em; color: #c9d1ee; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .player-detail .star-count { color: #f1c40f; }
+    .or-new { margin: 18px 0 10px; color: #c9d1ee; }
+    #cancel-player { margin-top: 16px; }
   </style>
 </head>
 <body>
@@ -288,6 +312,7 @@
       <p id="win-text"></p>
       <div class="panel-buttons">
         <button id="win-levels" class="secondary">Levels</button>
+        <button id="win-change-player" class="secondary">Change player</button>
         <button id="next">Next level</button>
       </div>
     </div>
@@ -305,11 +330,16 @@
   <div id="name-dialog" class="overlay" hidden>
     <div class="panel">
       <h2>Who's playing?</h2>
+      <div id="player-list" hidden>
+        <div id="player-buttons"></div>
+        <p class="or-new">Or play as someone new:</p>
+      </div>
       <form id="name-form">
         <input id="name-input" type="text" maxlength="30" placeholder="Your name"
                autocomplete="off" required>
         <button type="submit">Play</button>
       </form>
+      <button id="cancel-player" class="secondary" hidden></button>
     </div>
   </div>
 

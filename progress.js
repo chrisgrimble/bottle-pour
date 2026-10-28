@@ -50,27 +50,68 @@ function writeValue(key, value) {
   }
 }
 
-// A player's progress: `unlocked` is the furthest level index they can play,
-// `stars` holds their best star rating per level index (0 = not solved yet).
-function loadProgress(name) {
-  const fresh = { unlocked: 0, stars: [] };
-  const raw = readValue(playerKey(name));
-  if (raw === null) return fresh;
+// Every stored key, from whichever storage is in use.
+function storedKeys() {
+  if (cookiesWork) {
+    return document.cookie.split("; ").filter(Boolean).map(c => c.slice(0, c.indexOf("=")));
+  }
+  try {
+    return Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i));
+  } catch {
+    return [];
+  }
+}
+
+// A save holds the name as the player typed it, when they last played,
+// `unlocked` (the furthest level index they can play) and `stars` (their best
+// rating per level index, 0 = not solved yet).
+function parseSave(raw) {
+  if (raw === null) return null;
   // Older saves stored just the next level number.
   if (/^\d+$/.test(raw)) return { unlocked: parseInt(raw, 10), stars: [] };
   try {
     const saved = JSON.parse(raw);
     return {
+      name: typeof saved.name === "string" ? saved.name : undefined,
+      lastPlayed: Number(saved.lastPlayed) || 0,
       unlocked: Number.isInteger(saved.unlocked) && saved.unlocked >= 0 ? saved.unlocked : 0,
       stars: Array.isArray(saved.stars) ? saved.stars.map(s => Number(s) || 0) : [],
     };
   } catch {
-    return fresh;
+    return null;
   }
 }
 
+function loadProgress(name) {
+  const saved = parseSave(readValue(playerKey(name)));
+  return saved ? { unlocked: saved.unlocked, stars: saved.stars } : { unlocked: 0, stars: [] };
+}
+
 function saveProgress(name, progress) {
-  writeValue(playerKey(name), JSON.stringify(progress));
+  const save = { name: name.trim(), lastPlayed: Date.now(), unlocked: progress.unlocked, stars: progress.stars };
+  writeValue(playerKey(name), JSON.stringify(save));
+}
+
+// Everyone who has played on this device, most recently played first, as
+// { name, unlocked, totalStars }. Saves from before names were stored show
+// the lower-case name used as the key.
+function listPlayers() {
+  const prefix = KEY_PREFIX + "player_";
+  return storedKeys()
+    .filter(key => key.startsWith(prefix))
+    .map(key => {
+      const saved = parseSave(readValue(key));
+      if (!saved) return null;
+      return {
+        name: saved.name || decodeURIComponent(key.slice(prefix.length)),
+        lastPlayed: saved.lastPlayed || 0,
+        unlocked: saved.unlocked,
+        totalStars: saved.stars.reduce((sum, s) => sum + s, 0),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.lastPlayed - a.lastPlayed)
+    .map(({ lastPlayed, ...player }) => player);
 }
 
 function loadLastPlayer() {

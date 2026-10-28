@@ -28,6 +28,8 @@ function fakeLocalStorage() {
     items,
     getItem: k => (items.has(k) ? items.get(k) : null),
     setItem: (k, v) => items.set(k, String(v)),
+    key: i => [...items.keys()][i] ?? null,
+    get length() { return items.size; },
   };
 }
 
@@ -94,6 +96,53 @@ test("a page can keep its saves under a separate prefix", () => {
   run(`saveProgress("Alice", { unlocked: 1, stars: [3] })`);
   assert.ok(document.jar.has("bottlePourTest_player_alice"));
   assert.ok(!document.jar.has("bottlePour_player_alice"), "the real game's save is untouched");
+});
+
+for (const cookiesWork of [true, false]) {
+  const where = cookiesWork ? "cookies" : "localStorage";
+
+  test(`listPlayers shows everyone, most recent first, with their typed names (${where})`, () => {
+    const { run } = loadProgress({ cookiesWork });
+    let clock = 1000;
+    run(`Date.now = () => globalThis.clock`);
+    for (const [name, progress] of [["Alice", { unlocked: 4, stars: [3, 2, 3] }], ["Bob", { unlocked: 0, stars: [] }], ["Chris G", { unlocked: 9, stars: [1] }]]) {
+      run(`globalThis.clock = ${clock += 1000}, saveProgress(${JSON.stringify(name)}, ${JSON.stringify(progress)})`);
+    }
+    run(`saveLastPlayer("Bob")`);  // not a player record, must not be listed
+    assert.deepEqual(run("listPlayers()"), [
+      { name: "Chris G", unlocked: 9, totalStars: 1 },
+      { name: "Bob", unlocked: 0, totalStars: 0 },
+      { name: "Alice", unlocked: 4, totalStars: 8 },
+    ]);
+  });
+}
+
+test("listPlayers is empty on a new device", () => {
+  const { run } = loadProgress();
+  assert.deepEqual(run("listPlayers()"), []);
+});
+
+test("playing again moves a player to the top and updates their name's capitals", () => {
+  const { run } = loadProgress();
+  run(`Date.now = () => globalThis.clock, globalThis.clock = 1`);
+  run(`saveProgress("alice", { unlocked: 1, stars: [] })`);
+  run(`globalThis.clock = 2, saveProgress("Bob", { unlocked: 0, stars: [] })`);
+  run(`globalThis.clock = 3, saveProgress("Alice", { unlocked: 2, stars: [3] })`);
+  assert.deepEqual(run("listPlayers().map(p => p.name)"), ["Alice", "Bob"]);
+});
+
+test("listPlayers copes with old saves that have no stored name", () => {
+  const { run, document } = loadProgress();
+  document.jar.set("bottlePour_player_mary%20jane", "7");
+  assert.deepEqual(run("listPlayers()"), [{ name: "mary jane", unlocked: 7, totalStars: 0 }]);
+});
+
+test("listPlayers skips corrupted saves and other pages' players", () => {
+  const { run, document } = loadProgress();
+  document.jar.set("bottlePour_player_broken", encodeURIComponent("{oops"));
+  document.jar.set("bottlePourTest_player_tester", encodeURIComponent(JSON.stringify({ unlocked: 1, stars: [] })));
+  run(`saveProgress("Alice", { unlocked: 0, stars: [] })`);
+  assert.deepEqual(run("listPlayers().map(p => p.name)"), ["Alice"]);
 });
 
 test("the last player's name is remembered", () => {

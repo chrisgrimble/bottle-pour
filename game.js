@@ -372,29 +372,74 @@ nextBtn.addEventListener("click", () => {
 
 // ---------- players ----------
 
-function askForName() {
-  nameInput.value = loadLastPlayer();
+const playerListEl = document.getElementById("player-list");
+const playerButtonsEl = document.getElementById("player-buttons");
+const cancelPlayerBtn = document.getElementById("cancel-player");
+let returnToWin = false;  // the player list was opened from the win screen
+
+// Shows everyone who has played on this device, plus a box for a new name.
+function askForName({ fromWin = false } = {}) {
+  returnToWin = fromWin;
+  const players = listPlayers();
+  playerButtonsEl.innerHTML = "";
+  for (const player of players) {
+    const isCurrent = player.name.trim().toLowerCase() === playerName.trim().toLowerCase();
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "player-choice" + (isCurrent ? " current" : "");
+    if (isCurrent) button.setAttribute("aria-current", "true");
+    const level = Math.min(player.unlocked, LEVELS.length - 1) + 1;
+    const name = document.createElement("span");
+    name.className = "player-name";
+    name.textContent = player.name;  // typed by players, so never inserted as HTML
+    const detail = document.createElement("span");
+    detail.className = "player-detail";
+    detail.innerHTML = `Level ${level} · <span class="star-count">${player.totalStars} ★</span>`;
+    button.append(name, detail);
+    button.setAttribute("aria-label", `${player.name}, level ${level}, ${player.totalStars} stars`);
+    button.addEventListener("click", () => choosePlayer(player.name));
+    playerButtonsEl.appendChild(button);
+  }
+  playerListEl.hidden = players.length === 0;
+
+  // With a list to pick from, leave the box empty; otherwise suggest the last name.
+  nameInput.value = players.length ? "" : loadLastPlayer();
+  cancelPlayerBtn.hidden = !playerName;
+  cancelPlayerBtn.textContent = `Keep playing as ${playerName}`;
+  winEl.hidden = true;
   nameDialog.hidden = false;
-  nameInput.focus();
-  nameInput.select();
+  // Focus the first name rather than the text box, so phones don't pop up a keyboard.
+  (playerButtonsEl.firstElementChild || nameInput).focus();
+  if (!players.length) nameInput.select();
+}
+
+function choosePlayer(name) {
+  playerName = name.trim();
+  saveLastPlayer(playerName);
+  progress = loadProgress(playerName);
+  progress.unlocked = Math.min(progress.unlocked, LEVELS.length - 1);
+  saveProgress(playerName, progress);  // records them in the player list
+  levelIndex = progress.unlocked;
+  playerEl.textContent = playerName;
+  nameDialog.hidden = true;
+  startLevel();
 }
 
 nameForm.addEventListener("submit", event => {
   event.preventDefault();
-  const name = nameInput.value.trim();
-  if (!name) return;
-  playerName = name;
-  saveLastPlayer(name);
-  progress = loadProgress(name);
-  progress.unlocked = Math.min(progress.unlocked, LEVELS.length - 1);
-  levelIndex = progress.unlocked;
-  playerEl.textContent = name;
+  if (nameInput.value.trim()) choosePlayer(nameInput.value);
+});
+
+cancelPlayerBtn.addEventListener("click", () => {
   nameDialog.hidden = true;
-  startLevel();
+  if (returnToWin) winEl.hidden = false;
 });
 
 document.getElementById("change-player").addEventListener("click", () => {
   if (!animating) askForName();
+});
+document.getElementById("win-change-player").addEventListener("click", () => {
+  askForName({ fromWin: true });
 });
 
 // ---------- hints ----------
