@@ -9,7 +9,8 @@ A liquid-sorting puzzle that runs in the browser. Pour coloured layers between b
 - Hints, undo and restart
 - Hidden layers on some later levels: you only see a colour once it reaches the top
 - Progress is saved per player name, in this browser
-- Sound and celebrations, generated in the browser (no audio or image files)
+- Sound and celebrations, generated in the browser (no audio files)
+- Installs as an app on Android (Chrome menu → Install app) and plays offline
 
 ## Rules
 
@@ -38,3 +39,4 @@ Plain HTML and JavaScript with no dependencies. Node.js is only needed for the t
 | `game.js` | Screens, input and the pour animation |
 | `progress.js` | Saving players and progress (cookies, or localStorage when cookies aren't available) |
 | `sound.js`, `celebrate.js` | Sound effects and visual celebrations |
+| `manifest.webmanifest`, `sw.js`, `icons/` | Installing as an app and offline play; `node tools/make-icons.mjs` redraws the PNGs from `icons/icon.svg` |

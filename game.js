@@ -521,3 +521,13 @@ function boot(saved = {}) {
 }
 
 window.claude?.hot?.ready ? window.claude.hot.ready(boot) : boot(window.claude?.hot?.data ?? {});
+
+// ---------- installing as an app ----------
+// Only on the website itself: not when opened from disk, and not in the
+// single-file bundle (which has no manifest or sw.js alongside it).
+const servedSecurely = location.protocol === "https:" || ["localhost", "127.0.0.1"].includes(location.hostname);
+if ("serviceWorker" in navigator && servedSecurely && document.querySelector('link[rel="manifest"]')) {
+  navigator.serviceWorker.register("sw.js").catch(() => {
+    // Without it the game still works; it just can't be installed or played offline.
+  });
+}
