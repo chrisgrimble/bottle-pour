@@ -405,6 +405,7 @@ function askForName({ fromWin = false } = {}) {
   // With a list to pick from, leave the box empty; otherwise suggest the last name.
   nameInput.value = players.length ? "" : loadLastPlayer();
   cancelPlayerBtn.hidden = !playerName;
+  openSendBtn.hidden = !playerName;
   cancelPlayerBtn.textContent = `Keep playing as ${playerName}`;
   winEl.hidden = true;
   nameDialog.hidden = false;
@@ -440,6 +441,143 @@ document.getElementById("change-player").addEventListener("click", () => {
 });
 document.getElementById("win-change-player").addEventListener("click", () => {
   askForName({ fromWin: true });
+});
+
+// ---------- moving progress between devices ----------
+// See transfer.js for the code format. The link carries the code after a #,
+// which browsers never send to the server.
+
+const openSendBtn = document.getElementById("open-send");
+const sendDialog = document.getElementById("send-dialog");
+const sendLinkEl = document.getElementById("send-link");
+const sendCodeEl = document.getElementById("send-code");
+const sendStatusEl = document.getElementById("send-status");
+const shareLinkBtn = document.getElementById("share-link");
+const receiveDialog = document.getElementById("receive-dialog");
+const receiveCodeEl = document.getElementById("receive-code");
+const receiveErrorEl = document.getElementById("receive-error");
+const receivePreviewEl = document.getElementById("receive-preview");
+let incoming = null;  // the decoded transfer waiting to be added
+
+function progressSummary(name, saved) {
+  const level = Math.min(saved.unlocked, LEVELS.length - 1) + 1;
+  const stars = saved.stars.reduce((sum, s) => sum + s, 0);
+  const summary = document.createElement("span");
+  summary.textContent = `${name} · Level ${level} · `;
+  const starCount = document.createElement("span");
+  starCount.className = "star-count";
+  starCount.textContent = `${stars} ★`;
+  summary.append(starCount);
+  return summary;
+}
+
+// A link only makes sense on the website itself, not from a file or inside
+// the Claude page's frame.
+function transferLink(code) {
+  if (!location.protocol.startsWith("http") || window.top !== window) return null;
+  return `${location.origin}${location.pathname}#transfer=${code}`;
+}
+
+function openSend() {
+  const code = encodeTransfer(playerName, progress);
+  const link = transferLink(code);
+  document.getElementById("send-summary").replaceChildren(progressSummary(playerName, progress));
+  document.getElementById("send-how").textContent = link
+    ? "Open this link on your other device, or type the code there under Change player → Enter a transfer code."
+    : "On your other device, go to Change player → Enter a transfer code and type this code.";
+  sendLinkEl.hidden = !link;
+  sendLinkEl.value = link || "";
+  document.getElementById("copy-link").hidden = !link;
+  shareLinkBtn.hidden = !(link && navigator.share);
+  sendCodeEl.textContent = code;
+  sendStatusEl.textContent = "";
+  nameDialog.hidden = true;
+  sendDialog.hidden = false;
+}
+
+async function copyText(text, what) {
+  try {
+    await navigator.clipboard.writeText(text);
+    sendStatusEl.textContent = `${what} copied.`;
+  } catch {
+    sendStatusEl.textContent = `Couldn't copy automatically. Press and hold the ${what.toLowerCase()} to copy it.`;
+  }
+}
+
+function openReceive(code = "") {
+  incoming = null;
+  receiveCodeEl.value = code;
+  receiveErrorEl.textContent = "";
+  receivePreviewEl.hidden = true;
+  nameDialog.hidden = true;
+  winEl.hidden = true;
+  receiveDialog.hidden = false;
+  if (code) checkCode();
+  else receiveCodeEl.focus();
+}
+
+function checkCode() {
+  incoming = decodeTransfer(receiveCodeEl.value);
+  receivePreviewEl.hidden = !incoming;
+  if (!incoming) {
+    receiveErrorEl.textContent = receiveCodeEl.value.trim()
+      ? "That code doesn't work. Check it was copied in full, with no mistakes."
+      : "Type or paste a transfer code.";
+    return;
+  }
+  receiveErrorEl.textContent = "";
+  document.getElementById("receive-summary").replaceChildren(progressSummary(incoming.name, incoming));
+  const existing = listPlayers().find(p => p.name.toLowerCase() === incoming.name.toLowerCase());
+  document.getElementById("receive-merge").textContent = existing
+    ? `${existing.name} already plays on this device (level ${Math.min(existing.unlocked, LEVELS.length - 1) + 1}, ` +
+      `${existing.totalStars} ★). Adding keeps the furthest level and best stars from both.`
+    : "This adds them as a player on this device.";
+}
+
+function addIncoming() {
+  if (!incoming) return;
+  const merged = mergeProgress(loadProgress(incoming.name), incoming);
+  saveProgress(incoming.name, merged);
+  receiveDialog.hidden = true;
+  choosePlayer(incoming.name);
+}
+
+openSendBtn.addEventListener("click", openSend);
+shareLinkBtn.addEventListener("click", () => {
+  navigator.share({ title: "Bottle Pour progress", text: `My Bottle Pour progress (${playerName})`, url: sendLinkEl.value })
+    .catch(() => {});  // the player closed the share sheet
+});
+document.getElementById("copy-link").addEventListener("click", () => copyText(sendLinkEl.value, "Link"));
+document.getElementById("copy-code").addEventListener("click", () => copyText(sendCodeEl.textContent, "Code"));
+document.getElementById("close-send").addEventListener("click", () => {
+  sendDialog.hidden = true;
+  askForName({ fromWin: returnToWin });
+});
+
+document.getElementById("open-receive").addEventListener("click", () => openReceive());
+document.getElementById("receive-form").addEventListener("submit", event => {
+  event.preventDefault();
+  checkCode();
+});
+document.getElementById("receive-add").addEventListener("click", addIncoming);
+document.getElementById("close-receive").addEventListener("click", () => {
+  receiveDialog.hidden = true;
+  askForName({ fromWin: returnToWin });
+});
+
+// Opening a transfer link: offer to add the progress, then tidy the address
+// so a reload doesn't offer it again.
+function receiveFromLink() {
+  const match = location.hash.match(/^#transfer=([\w-]+)$/);
+  if (!match) return false;
+  // window.history: plain `history` is this game's undo list.
+  window.history.replaceState(null, "", location.pathname + location.search);
+  openReceive(match[1]);
+  return true;
+}
+
+window.addEventListener("hashchange", () => {
+  if (!animating) receiveFromLink();
 });
 
 // ---------- hints ----------
@@ -521,6 +659,7 @@ function boot(saved = {}) {
 }
 
 window.claude?.hot?.ready ? window.claude.hot.ready(boot) : boot(window.claude?.hot?.data ?? {});
+receiveFromLink();
 
 // ---------- installing as an app ----------
 // Only on the website itself: not when opened from disk, and not in the

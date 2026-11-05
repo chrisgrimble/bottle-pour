@@ -4,12 +4,13 @@
 // copy is refreshed); when offline the saved copy is used. Bump CACHE when the
 // list of files changes.
 
-const CACHE = "bottle-pour-v1";
+const CACHE = "bottle-pour-v2";
 const FILES = [
   "./",
   "index.html",
   "rules.js",
   "progress.js",
+  "transfer.js",
   "levels.js",
   "sound.js",
   "celebrate.js",

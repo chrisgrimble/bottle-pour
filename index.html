@@ -291,6 +291,58 @@
     .player-detail .star-count { color: #f1c40f; }
     .or-new { margin: 18px 0 10px; color: #c9d1ee; }
     #cancel-player { margin-top: 16px; }
+
+    .transfer-links {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      margin-top: 20px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    button.link-button {
+      background: none;
+      padding: 4px 8px;
+      color: #9fb4f0;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    button.link-button:hover { background: none; color: #c4d2ff; }
+
+    .transfer-panel { width: min(400px, 100%); }
+    .transfer-panel p { margin: 0 0 12px; }
+    .transfer-summary { font-weight: 600; font-size: 1.1em; }
+    .transfer-summary .star-count { color: #f1c40f; }
+    .transfer-label { font-size: 0.85em; color: #c9d1ee; text-transform: uppercase; letter-spacing: 0.08em; }
+    .transfer-code {
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 1.25em;
+      letter-spacing: 0.06em;
+      background: #141826;
+      border-radius: 8px;
+      padding: 10px;
+      overflow-wrap: anywhere;
+      user-select: all;
+    }
+    #send-link, #receive-code {
+      font: inherit;
+      width: 100%;
+      padding: 8px 10px;
+      margin-bottom: 14px;
+      border-radius: 8px;
+      border: 2px solid #4a5a85;
+      background: #141826;
+      color: #fff;
+    }
+    #send-link { font-size: 0.8em; color: #c9d1ee; }
+    #send-link[hidden] { display: none; }
+    #receive-code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; text-align: center; }
+    #receive-form { display: flex; flex-direction: column; align-items: center; }
+    .transfer-status { min-height: 1.4em; color: #8be0a4; margin-top: 10px !important; }
+    .transfer-error { min-height: 1.4em; color: #ff9a8f; }
+    #close-send, #close-receive { margin-top: 8px; }
+    #receive-add { margin-bottom: 12px; }
   </style>
 </head>
 <body>
@@ -346,11 +398,53 @@
         <button type="submit">Play</button>
       </form>
       <button id="cancel-player" class="secondary" hidden></button>
+      <div class="transfer-links">
+        <button type="button" id="open-send" class="link-button" hidden>Send progress to another device</button>
+        <button type="button" id="open-receive" class="link-button">Enter a transfer code</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="send-dialog" class="overlay" hidden>
+    <div class="panel transfer-panel">
+      <h2>Send progress</h2>
+      <p id="send-summary" class="transfer-summary"></p>
+      <p id="send-how"></p>
+      <input id="send-link" readonly aria-label="Transfer link">
+      <p class="transfer-label">Transfer code</p>
+      <p id="send-code" class="transfer-code"></p>
+      <div class="panel-buttons">
+        <button id="share-link" hidden>Share link</button>
+        <button id="copy-link" class="secondary">Copy link</button>
+        <button id="copy-code" class="secondary">Copy code</button>
+      </div>
+      <p id="send-status" class="transfer-status" role="status" aria-live="polite"></p>
+      <button id="close-send" class="secondary">Done</button>
+    </div>
+  </div>
+
+  <div id="receive-dialog" class="overlay" hidden>
+    <div class="panel transfer-panel">
+      <h2>Add progress</h2>
+      <p>Type the transfer code from your other device.</p>
+      <form id="receive-form">
+        <input id="receive-code" type="text" placeholder="e.g. 04B1-CVZ3-KYZZ" autocomplete="off"
+               autocapitalize="characters" spellcheck="false" aria-label="Transfer code">
+        <button type="submit">Check code</button>
+      </form>
+      <p id="receive-error" class="transfer-error" role="alert"></p>
+      <div id="receive-preview" hidden>
+        <p id="receive-summary" class="transfer-summary"></p>
+        <p id="receive-merge"></p>
+        <button id="receive-add">Add progress and play</button>
+      </div>
+      <button id="close-receive" class="secondary">Cancel</button>
     </div>
   </div>
 
   <script src="rules.js"></script>
   <script src="progress.js"></script>
+  <script src="transfer.js"></script>
   <script src="levels.js"></script>
   <script src="sound.js"></script>
   <script src="celebrate.js"></script>
