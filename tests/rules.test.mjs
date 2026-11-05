@@ -78,28 +78,69 @@ test("solve returns undefined when it hits its search limit", () => {
   assert.equal(call("solve", start, 4, 5), undefined);
 });
 
-test("startingHidden hides everything below the top, only on hidden levels", () => {
-  const bottles = [[0, 1, 2, 3], [1, 2], [3], []];
-  assert.deepEqual(call("startingHidden", { hidden: true, bottles }), [3, 1, 0, 0]);
-  assert.deepEqual(call("startingHidden", { bottles }), [0, 0, 0, 0]);
+// ---------- special layers ----------
+
+const H = colour => ({ colour, hidden: true });  // a hidden layer in a level
+const hiddenMap = specials => specials.map(b => b.map(s => (s.hidden ? "?" : "o")).join(""));
+
+test("pour reports how many layers it moved", () => {
+  assert.equal(run(`pour([[0, 1, 1, 1], [2, 2, 1]], 0, 1, 4)`), 1);
+  assert.equal(run(`pour([[0, 1, 1], []], 0, 1, 4)`), 2);
 });
 
-test("revealLayers turns up a layer once it's on top", () => {
-  // Bottle 0 had 3 face down; pouring its top away leaves 3 layers, so one shows.
-  assert.deepEqual(call("revealLayers", [[0, 1, 2], [3, 3]], [3, 1], 4), [2, 1]);
+test("levelColours reads plain and special layers alike", () => {
+  const level = { capacity: 4, bottles: [[0, H(1), 2, 3], [H(2), 1], []] };
+  assert.deepEqual(call("levelColours", level), [[0, 1, 2, 3], [2, 1], []]);
 });
 
-test("revealLayers never hides a layer again, e.g. after an undo", () => {
-  // Undo put a layer back on top of bottle 0; the one revealed below stays up.
-  assert.deepEqual(call("revealLayers", [[0, 1, 2, 3], [3]], [2, 0], 4), [2, 0]);
+test("levelSpecials marks exactly the layers the level hides, and any layer can be hidden", () => {
+  // A hidden layer above a visible one, and visible layers between hidden ones.
+  const level = { capacity: 4, bottles: [[0, H(1), 2, 3], [H(0), 1, H(2), 3], [3]] };
+  assert.deepEqual(hiddenMap(call("levelSpecials", level)), ["o?oo", "?o?o", "o"]);
 });
 
-test("revealLayers shows everything in a finished bottle", () => {
-  assert.deepEqual(call("revealLayers", [[1, 1, 1, 1], [0, 2]], [3, 1], 4), [0, 1]);
+test("a level can't hide a top layer: it starts face up", () => {
+  const level = { capacity: 4, bottles: [[0, H(1)], [H(2)]] };
+  assert.deepEqual(hiddenMap(call("levelSpecials", level)), ["oo", "o"]);
 });
 
-test("revealLayers leaves empty bottles with nothing hidden", () => {
-  assert.deepEqual(call("revealLayers", [[], [2]], [3, 0], 4), [0, 0]);
+test("a hidden layer turns face up when it's uncovered", () => {
+  // Bottle 0 was [0, ?1, 2, 3] and its top 3 was just poured away.
+  const after = run(`settleSpecials([[0, 1, 2], [3]], [[{}, { hidden: true }, {}], [{}]], 4)`);
+  assert.deepEqual(hiddenMap(after), ["o?o", "o"], "still hidden: 2 is on top");
+  const later = run(`settleSpecials([[0, 1], [3, 2]], [[{}, { hidden: true }], [{}, {}]], 4)`);
+  assert.deepEqual(hiddenMap(later), ["oo", "oo"], "now on top, so face up");
+});
+
+test("a finished bottle shows all its layers", () => {
+  const after = run(`settleSpecials([[1, 1, 1, 1]], [[{ hidden: true }, { hidden: true }, {}, {}]], 4)`);
+  assert.deepEqual(hiddenMap(after), ["oooo"]);
+});
+
+test("settleSpecials doesn't change the specials it's given (undo keeps the old ones)", () => {
+  // The hidden layer is now on top, so the settled copy shows it; the original stays hidden.
+  const [before, after] = run(`(() => {
+    const s = [[{}, { hidden: true }]];
+    return [s, settleSpecials([[1, 2]], s, 4)];
+  })()`);
+  assert.deepEqual(before, [[{}, { hidden: true }]]);
+  assert.deepEqual(after, [[{}, {}]]);
+});
+
+test("special properties travel with their layers when poured", () => {
+  // Pretend a future special kind sits on the top two layers of bottle 0.
+  const moved = run(`(() => {
+    const state = [[0, 1, 1], []], specials = [[{}, { mark: "a" }, { mark: "b" }], []];
+    pourSpecials(specials, 0, 1, pour(state, 0, 1, 4));
+    return specials;
+  })()`);
+  // Poured one at a time, so the top layer lands first (at the bottom).
+  assert.deepEqual(moved, [[{}], [{ mark: "b" }, { mark: "a" }]]);
+});
+
+test("hasHiddenLayers", () => {
+  assert.equal(run(`hasHiddenLayers([[{}, { hidden: true }], []])`), true);
+  assert.equal(run(`hasHiddenLayers([[{}, {}], []])`), false);
 });
 
 test("starsFor: 3 at par, 2 up to 50% over, 1 beyond", () => {

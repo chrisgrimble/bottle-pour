@@ -4,10 +4,10 @@ A liquid-sorting puzzle that runs in the browser. Pour coloured layers between b
 
 **Play it:** https://chrisgrimble.github.io/bottle-pour/
 
-- 40 levels, from 3 bottles up to 11, every one checked solvable
+- 45 levels, from 3 bottles up to 11, every one checked solvable
 - Up to 3 stars per level for solving in the fewest moves, and a Levels screen to replay them
 - Hints, undo and restart
-- Hidden layers on some later levels: you only see a colour once it reaches the top
+- Hidden layers on some later levels: you only see a colour once it reaches the top (some levels hide every layer below the top, others just a few)
 - Progress is saved per player name, in this browser
 - Sound and celebrations, generated in the browser (no audio files)
 - Installs as an app on Android (Chrome menu → Install app) and plays offline
@@ -34,7 +34,7 @@ Plain HTML and JavaScript with no dependencies. Node.js is only needed for the t
 
 | File | Contents |
 | --- | --- |
-| `rules.js` | Pouring, winning, the solver, stars and hidden layers |
+| `rules.js` | Pouring, winning, the solver, stars, and special layers such as hidden ones |
 | `levels.js` | The generated levels |
 | `game.js` | Screens, input and the pour animation |
 | `progress.js` | Saving players and progress (cookies, or localStorage when cookies aren't available) |
